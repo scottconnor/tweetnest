@@ -8,4 +8,6 @@
 	$home       = true;
 	require "inc/header.php";
 	echo tweetsHTML($q);
+	
+	
 	require "inc/footer.php";
