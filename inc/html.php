@@ -3,6 +3,11 @@
 	// HTML output templates
 	
 	function displayMonths($tabs = 4){
+		$s = '<a href="/hour/0">View Hours</a>';
+		
+		$s.= displayTweetBreakdown();
+		
+		
 		global $db, $selectedDate, $highlightedMonths, $filterMode, $home, $config;
 		$months = array(); $max = 0; $total = 0; $amount = 0;
 		$x      = str_repeat("\t", $tabs); $y = str_repeat("\t", $tabs+1);
@@ -16,7 +21,7 @@
 			$amount++;
 		}
 		$searching = $home ? false : (count($highlightedMonths) > 0);
-		$s = "<ul id=\"months\">\n";
+		$s.= "<ul id=\"months\">\n";
 		if(!$home){
 			$s .= $y . "<li class=\"home\"><a href=\"" . $path . "/\"><span class=\"m" . ($searching ? " ms\"><span class=\"a\">" : "\">") . "Recent tweets" . ($searching ? "</span><span class=\"b\"> (exit " . s($filterMode) . ")</span>" : "") . "</span></a></li>\n";
 		}
@@ -72,7 +77,9 @@
 		$_year  = "YEAR(FROM_UNIXTIME(`time`" . DB_OFFSET . "))";
 		$_month = "MONTH(FROM_UNIXTIME(`time`" . DB_OFFSET . "))";
 		$path   = s(rtrim($config['path'], "/"));
-		$q = $db->query("SELECT DAY(FROM_UNIXTIME(`time`" . DB_OFFSET . ")) as d, " . $_month . " AS m, " . $_year . " AS y, `type`, COUNT(*) AS c FROM `".DTP."tweets` WHERE " . $_year . " = '" . $db->s($year) . "' AND " . $_month . " = '" . $db->s($month) . "' GROUP BY y, m, d, `type` ORDER BY y ASC, m ASC, d ASC, `type` ASC");
+		$query = "SELECT DAY(FROM_UNIXTIME(`time`" . DB_OFFSET . ")) as d, " . $_month . " AS m, " . $_year . " AS y, `type`, COUNT(*) AS c FROM `".DTP."tweets` WHERE " . $_year . " = '" . $db->s($year) . "' AND " . $_month . " = '" . $db->s($month) . "' GROUP BY y, m, d, `type` ORDER BY y ASC, m ASC, d ASC, `type` ASC";
+		//echo $query;	
+		$q = $db->query($query);
 		while($r = $db->fetch($q)){
 			if(!array_key_exists($r['d'], $days)){
 				$days[$r['d']] = array("total" => 0);
@@ -111,12 +118,78 @@
 		return $s;
 	}
 	
+	
+	function displayHours($tabs = 3){
+		global $db, $selectedDate, $config, $hour;
+		//if(!is_numeric($month) || !is_numeric($year) || (is_numeric($month) && ($month > 12 || $month < 1)) || (is_numeric($year) && $year < 2000)){ return false; }
+		$hours   = array(); $max = 0; $total = 0;
+		$date   = getdate(mktime(1,0,0, $month, 1, $year)); $wd = $date['wday'];
+		$x      = str_repeat("\t", $tabs); $y = str_repeat("\t", $tabs+1);
+		$_year  = "YEAR(FROM_UNIXTIME(`time`" . DB_OFFSET . "))";
+		$_month = "MONTH(FROM_UNIXTIME(`time`" . DB_OFFSET . "))";
+		$path   = s(rtrim($config['path'], "/"));
+		$query = "SELECT HOUR( FROM_UNIXTIME(  `time` +0 ) ) AS h,  `type` , COUNT( * ) AS c FROM  `tn_tweets`  GROUP BY h,  `type` ORDER BY h ASC ,  `type` ASC";
+		//echo '<p>' . $query . '</p>';
+		$q = $db->query($query);
+		while($r = $db->fetch($q)){
+			if(!array_key_exists($r['h'], $hours)){
+				$hours[$r['h']] = array("total" => 0);
+			}
+			$hours[$r['h']]['total'] += $r['c'];
+			$hours[$r['h']]['c' . $r['type']] = $r['c'];
+			if($hours[$r['h']]['total'] > $max){ $max = $hours[$r['h']]['total']; }
+			$total += $r['c'];
+		}
+		$daysInMonth = getDaysInMonth($month, $year);
+		$s = "<div id=\"days\" class=\"days-" . s($daysInMonth) . "\"><div class=\"dr\">\n";
+		for($i = 0; $i < 24; $i++){
+			//$today = ($selectedDate['y'] == $year && $selectedDate['m'] == $month && $selectedDate['d'] == ($i+1));
+			$today = ($hour == $i);
+			if(array_key_exists($i, $hours)){
+				$d  = $hours[$i];
+				$s .= $y . "<div class=\"d\"><a title=\"" . s($d['total']) . " tweet" . (($d['total'] == 1) ? "" : "s") .
+				(!empty($d['c1']) ? ", " . s($d['c1']) . " repl" . ($d['c1'] == 1 ? "y" : "ies") : "") .
+				(!empty($d['c2']) ? ", " . s($d['c2']) . " retweet" . ($d['c2'] == 1 ? "" : "s") : "") .
+				"\" href=\"" . $path . "/hour" . "/" . s($i) . "\">" .
+				"<span class=\"p\" style=\"height:" . round((($d['total']/$max)*250), 2) . "px\">" .
+				"<span class=\"n\">" . ($d['total'] != 1 ? number_format($d['total']) : "") . "</span>" . 
+				(!empty($d['c1']) ? "<span class=\"r\" style=\"height:" . round((($d['c1']/$max)*250), 2) . "px\"></span>" : "") . 
+				(!empty($d['c2']) ? "<span class=\"rt\" style=\"height:" . round((($d['c2']/$max)*250), 2) . "px\"></span>" : "") . 
+				"</span><span class=\"m" . (($wd == 0 || $wd == 6) ? " mm" : "") . ($today ? " ms" : "") . "\">" . 
+				($today ? "<strong>" : "") . s($i) . ($today ? "</strong>" : "") . 
+				"</span></a></div>\n";
+			} else {
+				$s .= $y . "<div class=\"d\"><a href=\"" . $path . "/hour/" . s($i) . "\">" .
+				"<span class=\"z\">0</span><span class=\"m" . (($wd == 0 || $wd == 6) ? " mm" : "") . ($today ? " ms" : "") . "\">" .
+				($today ? "<strong>" : "") . s($i) . ($today ? "</strong>" : "") . 
+				"</span></a></div>\n";
+			}
+			$wd = ($wd == 6) ? 0 : $wd + 1;
+		}
+		$s .= $x . "</div></div>\n";
+		return $s;
+	}
+	
+	function displayTweetBreakdown(){
+		global $db;
+		$types = array('Tweets', 'Replies', 'Retweets');
+		$sql = "SELECT  `type` , COUNT( * ) AS c FROM  `tn_tweets`  GROUP BY  `type` ORDER BY  'type'";
+		$q = $db->query($sql);
+		$x = '<ul>';
+		while($r = $db->fetch($q)){
+			$x.= '<li>' . $types[$r['type']]. ': ' . $r['c'] . '</li>';
+		}
+		$x.='</ul>';
+		return $x;
+	}
+	
 	function tweetHTML($tweet, $tabs = 4){
 		global $twitterApi;
 		$tweetextra = array(); $tweetplace = array();
 		if(!empty($tweet['extra'])){
 			@$tweetextra = unserialize($tweet['extra']);
 		}
+	
 		if(!empty($tweet['place'])){
 			$tweetplace = unserialize(str_replace("O:16:\"SimpleXMLElement\"", "O:8:\"stdClass\"", $tweet['place']));
 		}
@@ -137,6 +210,10 @@
 				$t . "\t</p>\n" . $t . "</div>\n";
 		$dd = hook("displayTweet", array($d, $tweet));
 		if(!empty($dd)){ $d = $dd[0]; }
+		//$d.= '<pre>';
+		//$d.= print_r($tweetextra, true);
+		//$d.=print_r($tweetplace, true);
+		//$d.= '</pre>';
 		return  $d;
 	}
 	
