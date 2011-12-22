@@ -7,7 +7,4 @@
     echo "date(\"Z\"): ".date("Z")."\n";
     echo "date(\"Z\")-\$dbtR['diff']*36: ";
     echo date("Z")-$dbtR['diff']*36;
-	//web clean out
-	//local edit here	
-	//web edit here
-	//new website edit
+	//web edit 1
