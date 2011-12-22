@@ -8,3 +8,4 @@
     echo "date(\"Z\")-\$dbtR['diff']*36: ";
     echo date("Z")-$dbtR['diff']*36;
 	//web clean out
+	//local edit here
