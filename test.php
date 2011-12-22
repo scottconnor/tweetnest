@@ -12,4 +12,7 @@
 	//local edit 2
 	function localFunction(){
 		//do some stuff in here
+	//web edit 2
+	function webFunction(){
+		//do web stuff
 	}
