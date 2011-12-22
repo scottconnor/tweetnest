@@ -9,3 +9,7 @@
     echo date("Z")-$dbtR['diff']*36;
 	//local edit 1
 	//web edit 1
+	//web edit 2
+	function webFunction(){
+		//do web stuff
+	}
